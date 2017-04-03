@@ -17,43 +17,59 @@ class game_controller(object):
 	def start(self):
 		if self.canvas.data["play"] == None:
 			self.canvas.data["play"] = True
-			self.canvas.data["stage"] = "deploy"
-			self.deploy()
+			self.currentDeploy = self.canvas.data["shipTypes"]["typeList"][0]
+			self.deploy_state()
 			
 		elif self.canvas.data["play"] == False:
 			pass
 		else:
 			pass
 
-	def deploy(self):
-		self.currentDeploy = self.canvas.data["shipTypes"]["typeList"][0]
+	def deploy_state(self):
+		if self.canvas.data["shipTypes"][self.currentDeploy]["count"] != 0:
+			self.canvas.data["stage"] = "deploy"
+		else:
+			nextIndex = self.canvas.data["shipTypes"]["typeList"].index(self.currentDeploy) + 1
+			if nextIndex < len(self.canvas.data["shipTypes"]["typeList"]):
+				self.currentDeploy = self.canvas.data["shipTypes"]["typeList"][nextIndex]
+			else:
+				self.canvas.data["stage"] = "play"
+			
 	
 	def quit(self):
 		self.root.destroy()
 		
 	def on_click1(self, event=None):
 		if self.canvas.data["play"]:
-			if self.canvas.data["stage"] == "deploy" and self.deployValid:
-				if self.canvas.data["deployDir"] == "horizontal":
-					for x in range(int( self.canvas.gettags(CURRENT)[3] ), int( self.canvas.gettags(CURRENT)[3] ) + self.canvas.data["shipTypes"][self.currentDeploy]["size"]):
-
-						self.canvas.itemconfig(self.canvas.data["playerBoard"][int( self.canvas.gettags(CURRENT)[2] )][x]["ref"], fill="#0000FF")
-						
-						self.canvas.data["playerBoard"][int( self.canvas.gettags(CURRENT)[2] )][x]["presence"] = self.currentDeploy
-						
-						print(self.canvas.gettags(self.canvas.data["playerBoard"][int( self.canvas.gettags(CURRENT)[2] )][x]["ref"]))
-				else:
-					for y in range(int( self.canvas.gettags(CURRENT)[2] ), int( self.canvas.gettags(CURRENT)[2] ) + self.canvas.data["shipTypes"][self.currentDeploy]["size"]):
-						self.canvas.itemconfig(self.canvas.data["playerBoard"][y][int( self.canvas.gettags(CURRENT)[3] )]["ref"], fill="#0000FF")		
+			deploy_list = self.get_deploy_list()
+			if self.canvas.data["stage"] == "deploy" and deploy_list["valid"]:
+				_y = int( self.canvas.gettags(CURRENT)[2] )
+				_x = int( self.canvas.gettags(CURRENT)[3] )
 				
 		
+				if self.canvas.data["deployDir"] == "horizontal":
+					for x in range(_x, _x + self.canvas.data["shipTypes"][self.currentDeploy]["size"]):
+
+						self.canvas.itemconfig(self.canvas.data["playerBoard"][_y][x]["ref"], fill="#0000FF")
+						self.canvas.data["playerBoard"][_y][x]["presence"] = self.currentDeploy
+					self.canvas.data["shipTypes"][self.currentDeploy]["count"] -=1
+					self.deploy_state()
+
+				else:
+					for y in range(_y, _y + self.canvas.data["shipTypes"][self.currentDeploy]["size"]):
+						self.canvas.itemconfig(self.canvas.data["playerBoard"][y][_x]["ref"], fill="#0000FF")		
+						self.canvas.data["playerBoard"][y][_x]["presence"] = self.currentDeploy				
+					self.canvas.data["shipTypes"][self.currentDeploy]["count"] -=1
+					self.deploy_state()
+						
 	def on_click3(self, event=None):
 		if self.canvas.data["play"]:
 			if self.canvas.data["deployDir"] == "horizontal":
 				self.canvas.data["deployDir"] = "vertical"
 			else:
 				self.canvas.data["deployDir"] = "horizontal"
-			print(self.canvas.data["deployDir"])
+			self.redraw_board()
+
 			
 	def on_release(self, event=None):
 		pass
@@ -62,43 +78,56 @@ class game_controller(object):
 		if self.canvas.data["play"]:
 			if self.canvas.data["stage"] == "deploy" and "block" in self.canvas.gettags(CURRENT) and "player" in self.canvas.gettags(CURRENT):
 				self.currentId = self.canvas.find_withtag(CURRENT)[0]
-				
-				self.deployValid = True
-				if self.canvas.data["deployDir"] == "horizontal":
-					for x in range(int( self.canvas.gettags(CURRENT)[3] ), int( self.canvas.gettags(CURRENT)[3] ) + self.canvas.data["shipTypes"][self.currentDeploy]["size"]):
-						if x in self.canvas.data["playerBoard"][int( self.canvas.gettags(CURRENT)[2] )]:
-							self.canvas.itemconfig(self.canvas.data["playerBoard"][int( self.canvas.gettags(CURRENT)[2] )][x]["ref"], fill="#AAAAFF")
-						else:
-							self.deployValid = False			
-				else:
-					for y in range(int( self.canvas.gettags(CURRENT)[2] ), int( self.canvas.gettags(CURRENT)[2] ) + self.canvas.data["shipTypes"][self.currentDeploy]["size"]):
-						if y in self.canvas.data["playerBoard"]:
-							self.canvas.itemconfig(self.canvas.data["playerBoard"][y][int( self.canvas.gettags(CURRENT)[3] )]["ref"], fill="#AAAAFF")
-						else:
-							self.deployValid = False				
+				self.redraw_board()
 
+	def get_deploy_list(self):
+		deploy_list = {}
+		_y = int( self.canvas.gettags(CURRENT)[2] )
+		_x = int( self.canvas.gettags(CURRENT)[3] )
+		deploy_list["valid"] = True
+		if self.canvas.data["deployDir"] == "horizontal":
+			deploy_list[_y] = {}
+			for x in range(_x, _x + self.canvas.data["shipTypes"][self.currentDeploy]["size"]):
+				if x in self.canvas.data["playerBoard"][_y]:
+					if self.canvas.data["playerBoard"][_y][x]["presence"] in self.canvas.data["shipTypes"]["typeList"]: 
+						deploy_list[_y][x] = False
+						deploy_list["valid"] = False
+					else:
+						deploy_list[_y][x] = True
+				else:
+					break
+		else:
+			for y in range(_y, _y + self.canvas.data["shipTypes"][self.currentDeploy]["size"]):		
+				if y in self.canvas.data["playerBoard"]:
+					deploy_list[y] = {}
+					if self.canvas.data["playerBoard"][y][_x]["presence"] in self.canvas.data["shipTypes"]["typeList"]: 
+						deploy_list[y][_x] = False
+						deploy_list["valid"] = False
+					else:
+						deploy_list[y][_x] = True
+				else:
+					break
+		
+		return deploy_list
+		
+	def redraw_board(self):
+		deploy_list = self.get_deploy_list()
+		for y in range(0,10):
+			for x in range(0,10):
 				
+				if y in deploy_list and x in deploy_list[y] and deploy_list[y][x] == False:
+					self.canvas.itemconfig(self.canvas.data["playerBoard"][y][x]["ref"], fill="#FF0000")		
+				elif y in deploy_list and x in deploy_list[y] and deploy_list[y][x] == True:
+					self.canvas.itemconfig(self.canvas.data["playerBoard"][y][x]["ref"], fill="#AAAAFF")				
+				elif self.canvas.data["playerBoard"][y][x]["presence"] in self.canvas.data["shipTypes"]["typeList"]:
+					self.canvas.itemconfig(self.canvas.data["playerBoard"][y][x]["ref"], fill="#0000FF")	
+				else:
+					self.canvas.itemconfig(self.canvas.data["playerBoard"][y][x]["ref"], fill=EMPTY_COLOR)
 				
 	def on_leave(self, event=None):
 		if self.canvas.data["play"]:
 			if self.canvas.data["stage"] == "deploy" and self.currentId:
-				if self.canvas.data["deployDir"] == "horizontal":
-					for x in range(int( self.canvas.gettags(self.currentId)[3] ), int( self.canvas.gettags(self.currentId)[3] ) + self.canvas.data["shipTypes"][self.currentDeploy]["size"]):
-						if x in self.canvas.data["playerBoard"][int( self.canvas.gettags(self.currentId)[2] )]:
-							if self.canvas.data["playerBoard"][int( self.canvas.gettags(self.currentId)[2] )][x]["presence"] in self.canvas.data["shipTypes"]["typeList"]:
-								self.canvas.itemconfig(self.canvas.data["playerBoard"][int( self.canvas.gettags(self.currentId)[2] )][x]["ref"], fill="#0000FF")
-							else:
-								self.canvas.itemconfig(self.canvas.data["playerBoard"][int( self.canvas.gettags(self.currentId)[2] )][x]["ref"], fill=EMPTY_COLOR)								
-				else:
-					for y in range(int( self.canvas.gettags(self.currentId)[2] ), int( self.canvas.gettags(self.currentId)[2] ) + self.canvas.data["shipTypes"][self.currentDeploy]["size"]):
-						if y in self.canvas.data["playerBoard"]:
-							if self.canvas.data["playerBoard"][y][int( self.canvas.gettags(self.currentId)[3] )]["presence"] in self.canvas.data["shipTypes"]["typeList"]:
-								self.canvas.itemconfig(self.canvas.data["playerBoard"][y][int( self.canvas.gettags(self.currentId)[3] )]["ref"], fill="#0000FF")
-							else:
-								self.canvas.itemconfig(self.canvas.data["playerBoard"][y][int( self.canvas.gettags(self.currentId)[3] )]["ref"], fill=EMPTY_COLOR)
-						
-						
-							
+				self.redraw_board()							
 				self.currentId = None
 	
 	def __init__(self, root):
