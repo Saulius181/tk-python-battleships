@@ -438,7 +438,15 @@ class game_controller(object):
       }
    }
 }
+	def ai(self):
+		ai_pick = random.choice(self.canvas.data["aiHitList"])
+		self.canvas.data["aiHitList"].remove(ai_pick)
+		
+		self.canvas.addtag_withtag("hit", self.canvas.data["playerBoard"][ai_pick[0]][ai_pick[1]]["ref"])
+		self.canvas.data["play"] = True
+		self.redraw_board()
 
+		
 	def start(self):
 		if self.canvas.data["play"] == None:
 			self.canvas.data["play"] = True
@@ -467,27 +475,35 @@ class game_controller(object):
 		
 	def on_click1(self, event=None):
 		if self.canvas.data["play"]:
-			deploy_list = self.get_deploy_list()
+#			deploy_list = self.get_deploy_list()
 #			print(deploy_list["valid"])
-			if self.canvas.data["stage"] == "deploy" and deploy_list["valid"]:
-				_y = int( self.canvas.gettags(CURRENT)[2] )
-				_x = int( self.canvas.gettags(CURRENT)[3] )
-				
-		
-				if self.canvas.data["deployDir"] == "horizontal":
-					for x in range(_x, _x + self.canvas.data["shipTypes"][self.currentDeploy]["size"]):
+			if self.canvas.data["stage"] == "deploy":
+				if self.get_deploy_list()["valid"]:
+					_y = int( self.canvas.gettags(CURRENT)[2] )
+					_x = int( self.canvas.gettags(CURRENT)[3] )
+					
+			
+					if self.canvas.data["deployDir"] == "horizontal":
+						for x in range(_x, _x + self.canvas.data["shipTypes"][self.currentDeploy]["size"]):
 
-						self.canvas.itemconfig(self.canvas.data["playerBoard"][_y][x]["ref"], fill="#0000FF")
-						self.canvas.data["playerBoard"][_y][x]["presence"] = self.currentDeploy
-					self.canvas.data["shipTypes"][self.currentDeploy]["player"] +=1
-					self.deploy_state()
+							self.canvas.itemconfig(self.canvas.data["playerBoard"][_y][x]["ref"], fill="#0000FF")
+							self.canvas.data["playerBoard"][_y][x]["presence"] = self.currentDeploy
+						self.canvas.data["shipTypes"][self.currentDeploy]["player"] +=1
+						self.deploy_state()
 
-				else:
-					for y in range(_y, _y + self.canvas.data["shipTypes"][self.currentDeploy]["size"]):
-						self.canvas.itemconfig(self.canvas.data["playerBoard"][y][_x]["ref"], fill="#0000FF")		
-						self.canvas.data["playerBoard"][y][_x]["presence"] = self.currentDeploy				
-					self.canvas.data["shipTypes"][self.currentDeploy]["player"] +=1
-					self.deploy_state()
+					else:
+						for y in range(_y, _y + self.canvas.data["shipTypes"][self.currentDeploy]["size"]):
+							self.canvas.itemconfig(self.canvas.data["playerBoard"][y][_x]["ref"], fill="#0000FF")		
+							self.canvas.data["playerBoard"][y][_x]["presence"] = self.currentDeploy				
+						self.canvas.data["shipTypes"][self.currentDeploy]["player"] +=1
+						self.deploy_state()
+			elif self.canvas.data["stage"] == "play":				
+				if not "hit" in self.canvas.gettags(CURRENT) and "block" in self.canvas.gettags(CURRENT) and "ai" in self.canvas.gettags(CURRENT): 
+
+					self.canvas.addtag_withtag("hit", CURRENT)
+					self.redraw_board()
+					self.canvas.data["play"] = False
+					self.ai()
 						
 	def on_click3(self, event=None):
 		if self.canvas.data["play"]:
@@ -543,7 +559,6 @@ class game_controller(object):
 						break
 		else:
 			deploy_list["valid"] = False
-		print(deploy_list)
 		return deploy_list
 		
 	def redraw_board(self):
@@ -567,14 +582,24 @@ class game_controller(object):
 						if self.canvas.data["playerBoard"][y][x]["ref"] == self.currentId and self.canvas.data["playerBoard"][y][x]["presence"]:
 							self.canvas.itemconfig(self.canvas.data["playerBoard"][y][x]["ref"], fill="#FF0000")	
 						elif self.canvas.data["playerBoard"][y][x]["ref"] == self.currentId and not self.canvas.data["playerBoard"][y][x]["presence"]:
-							self.canvas.itemconfig(self.canvas.data["playerBoard"][y][x]["ref"], fill="#CC0000")						
+							self.canvas.itemconfig(self.canvas.data["playerBoard"][y][x]["ref"], fill="#CC0000")
+							
+						elif "hit" in self.canvas.gettags(self.canvas.data["playerBoard"][y][x]["ref"]) and self.canvas.data["playerBoard"][y][x]["presence"]:
+							self.canvas.itemconfig(self.canvas.data["playerBoard"][y][x]["ref"], fill="#000000")
+						elif "hit" in self.canvas.gettags(self.canvas.data["playerBoard"][y][x]["ref"]) and not self.canvas.data["playerBoard"][y][x]["presence"]:
+							self.canvas.itemconfig(self.canvas.data["playerBoard"][y][x]["ref"], fill="#AAAAAA")
+							
 						elif self.canvas.data["playerBoard"][y][x]["presence"] in self.canvas.data["shipTypes"]["typeList"]:
 							self.canvas.itemconfig(self.canvas.data["playerBoard"][y][x]["ref"], fill="#0000FF")	
 						else:
 							self.canvas.itemconfig(self.canvas.data["playerBoard"][y][x]["ref"], fill=EMPTY_COLOR)
 							
 						if self.canvas.data["aiBoard"][y][x]["ref"] == self.currentId:
-							self.canvas.itemconfig(self.canvas.data["aiBoard"][y][x]["ref"], fill="#CC0000")	
+							self.canvas.itemconfig(self.canvas.data["aiBoard"][y][x]["ref"], fill="#CC0000")
+						elif "hit" in self.canvas.gettags(self.canvas.data["aiBoard"][y][x]["ref"]) and self.canvas.data["aiBoard"][y][x]["presence"]:
+							self.canvas.itemconfig(self.canvas.data["aiBoard"][y][x]["ref"], fill="#000000")
+						elif "hit" in self.canvas.gettags(self.canvas.data["aiBoard"][y][x]["ref"]) and not self.canvas.data["aiBoard"][y][x]["presence"]:
+							self.canvas.itemconfig(self.canvas.data["aiBoard"][y][x]["ref"], fill="#AAAAAA")							
 						else:
 							self.canvas.itemconfig(self.canvas.data["aiBoard"][y][x]["ref"], fill=EMPTY_COLOR)
 				
@@ -604,6 +629,7 @@ class game_controller(object):
 		
 		self.canvas.data["playerBoard"] = {}
 		self.canvas.data["aiBoard"] = {}
+		self.canvas.data["aiHitList"] = []
 		
 		self.canvas.data["shipTypes"] = {}
 		self.canvas.data["shipTypes"]["typeList"] = ["AircraftCarrier", "Battleship", "Cruiser", "Destroyer", "Frigate"]
@@ -630,6 +656,7 @@ class game_controller(object):
 				self.canvas.data["aiBoard"][y][x] = {}
 				self.canvas.data["aiBoard"][y][x]["ref"] = self.canvas.create_rectangle(20+x*30 + 350, 30+y*30, 20+30+ x*30 + 350, 30+30 +y*30, fill=EMPTY_COLOR, tags="block ai {} {}".format(y,x))
 				self.canvas.data["aiBoard"][y][x]["presence"] = None
+				self.canvas.data["aiHitList"].append( [y, x] )
 				self.canvas.tag_bind(self.canvas.data["aiBoard"][y][x]["ref"], "<Enter>", self.on_enter)
 				self.canvas.tag_bind(self.canvas.data["aiBoard"][y][x]["ref"], "<Leave>", self.on_leave)	
 
